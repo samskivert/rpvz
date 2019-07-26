@@ -26,9 +26,10 @@ const red = Color.fromRGB(1, 0, 0)
 const white = Color.fromRGB(1, 1, 1)
 const dot = dim2.fromValues(2, 2)
 
-function makeUnitTrans (tile :Tile, ox :number, oy :number, gx :number, gy :number) {
+function makeGridTrans (tile :Tile, ox :number, oy :number, gx :number, gy :number,
+                        xoff = 0, yoff = 0) {
   const cx = gridMinX+gridCellW*gx, cy = gridMinY+gridCellH*gy
-  return makeTransform(ox, oy, cx, cy, 1, 1, 0)
+  return makeTransform(ox, oy, cx+xoff, cy+yoff, 1, 1, 0)
 }
 
 type UnitConfig = {
@@ -66,7 +67,7 @@ function makeUnit (cfg :UnitConfig, tile :Tile, gx :number, gy :number) {
   const ox = twid/2, oy = thei // TODO: provide this in tile info?
   return {
     components: {
-      trans: {initial: makeUnitTrans(tile, ox, oy, gx, gy)},
+      trans: {initial: makeGridTrans(tile, ox, oy, gx, gy)},
       tile: {initial: tile},
       xextent: {initial: vec2.fromValues(-ox, twid-ox)},
       vel: {},
@@ -77,10 +78,28 @@ function makeUnit (cfg :UnitConfig, tile :Tile, gx :number, gy :number) {
   }
 }
 function makePlant (cfg :UnitConfig, texs :Textures, gx :number, gy :number) {
-  return makeUnit(cfg, texs.plants[cfg.tile], gx, gy)
+  return {type: "plant", ...makeUnit(cfg, texs.plants[cfg.tile], gx, gy)}
 }
 function makeZomb (cfg :UnitConfig, texs :Textures, gx :number, gy :number) {
-  return makeUnit(cfg, texs.zombs[cfg.tile], gx, gy)
+  return {type: "zomb", ...makeUnit(cfg, texs.zombs[cfg.tile], gx, gy)}
+}
+
+function makePea (texs :Textures, gx :number, gy :number) {
+  const tile = texs.plants.pea, twid = tile.size[0], thei = tile.size[1]
+  // TODO: get from config: offset from grid origin at which to start pea; lines up with mouth
+  const xoff = 85, yoff = -120
+  return {
+    type: "pea",
+    components: {
+      trans: {initial: makeGridTrans(tile, twid/2, thei/2, gx, gy, xoff, yoff)},
+      tile,
+      xextent: {initial: vec2.fromValues(-twid, twid)},
+      vel: {},
+      basevel: {initial: vec2.fromValues(20, 0)},
+      lane: {initial: gy},
+      collid: {},
+    }
+  }
 }
 
 export class ShambleSystem extends System {
@@ -110,9 +129,12 @@ type LaneCollideComps = {
   collid :IDComponent
 }
 
-
-function checkCollide (ml :number, mr :number, sl :number, sr :number) {
-  return (sl < ml && ml < sr) || (sl < mr && mr < sr)
+function checkCollide (mtype :string, ml :number, mr :number,
+                       stype :string, sl :number, sr :number) {
+  if ((sl < ml && ml < sr) || (sl < mr && mr < sr)) {
+    return (stype !== "plant" || mtype !== "pea")
+  }
+  return false
 }
 
 export class LaneCollideSystem extends System {
@@ -129,17 +151,19 @@ export class LaneCollideSystem extends System {
     for (let lane = 0; lane < Lanes; lane += 1) {
       const ids = this.laneIds[lane]
       for (const id of ids) {
+        const type = this.domain.entityConfig(id)["type"]
         const text = xextent.read(id, tmpext)
         const tx = trans.readTx(id)
         const tl = tx+text[0], tr = tx+text[1]
 
         const curcid = collid.read(id)
         if (curcid !== 0) {
+          const ctype = this.domain.entityConfig(curcid)["type"]
           const ctx = trans.readTx(curcid)
           const ctext = xextent.read(curcid, tmpext)
           const ctl = ctx+ctext[0], ctr = ctx+ctext[1]
           // if we're still colliding with someone, then NOOP
-          if (checkCollide(tl, tr, ctl, ctr)) continue
+          if (checkCollide(type, tl, tr, ctype, ctl, ctr)) continue
           // otherwise stop colliding wiht that guy (TODO: emit event?)
           collid.update(id, 0)
         }
@@ -150,10 +174,11 @@ export class LaneCollideSystem extends System {
         // x squared ftw! x is less than ten so whatever
         for (const cid of ids) {
           if (id === cid) continue
+          const ctype = this.domain.entityConfig(cid)["type"]
           const ctx = trans.readTx(cid)
           const ctext = xextent.read(cid, tmpext)
           const ctl = ctx+ctext[0], ctr = ctx+ctext[1]
-          if (checkCollide(tl, tr, ctl, ctr)) {
+          if (checkCollide(type, tl, tr, ctype, ctl, ctr)) {
             collid.update(id, cid)
           }
         }
@@ -238,6 +263,7 @@ export class GameMode extends SurfaceMode {
     domain.add(makePlant(plants.shooter, texs, gx, gy++))
     domain.add(makePlant(plants.threepeater, texs, gx, gy++))
     domain.add(makePlant(plants.shooter, texs, gx, gy++))
+    domain.add(makePea(texs, gx, gy))
     domain.add(makePlant(plants.shooter, texs, gx, gy++))
     domain.add(makePlant(plants.threepeater, texs, gx, gy++))
 
