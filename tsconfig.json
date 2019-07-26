@@ -25,7 +25,7 @@
     "noImplicitAny": true,
     "noImplicitReturns": true,
     "noImplicitThis": true,
-    "noUnusedLocals": true,
+    "noUnusedLocals": false,
     "downlevelIteration": true,
     "suppressImplicitAnyIndexErrors": true,
   },
