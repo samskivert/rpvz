@@ -31,12 +31,12 @@ export const ZombImages = {
   twilight: "zombs/twilight.png",
 }
 
-export const GroundImages = {
+export const MiscImages = {
   ground: "ground.png"
 }
 
 export type Textures = {
   plants :TexturesOf<typeof PlantImages>
   zombs  :TexturesOf<typeof ZombImages>
-  ground :TexturesOf<typeof GroundImages>
+  misc   :TexturesOf<typeof MiscImages>
 }

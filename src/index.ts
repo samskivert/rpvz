@@ -3,7 +3,7 @@ import {GLC, Texture} from "tfw/scene2/gl"
 
 import {App} from "./app"
 import {loadTextures} from "./tiles"
-import {PlantImages, ZombImages, GroundImages} from "./media"
+import {PlantImages, ZombImages, MiscImages} from "./media"
 import {GameMode} from "./game"
 
 const root = document.getElementById("root")
@@ -17,7 +17,7 @@ const PixCfg = {...Texture.DefaultConfig, minFilter: GLC.NEAREST, magFilter: GLC
 Subject.join3(
   loadTextures(app.renderer.glc, PlantImages, 2),
   loadTextures(app.renderer.glc, ZombImages, 2),
-  loadTextures(app.renderer.glc, GroundImages, 1, PixCfg)
-).onValue(([plants, zombs, ground]) => {
-  app.setMode(new GameMode(app, {plants, zombs, ground}))
+  loadTextures(app.renderer.glc, MiscImages, 1, PixCfg)
+).onValue(([plants, zombs, misc]) => {
+  app.setMode(new GameMode(app, {plants, zombs, misc}))
 })
